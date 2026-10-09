@@ -1,0 +1,135 @@
+<!DOCTYPE html><html lang="el"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FTTH Scanner v5.4</title><style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #f2f2f7; margin: 0; padding: 15px; color: #1c1c1e; }
+    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    h2 { margin: 0 0 12px; font-size: 17px; color: #007aff; }
+    label { font-size: 13px; font-weight: 600; color: #6c6c70; display: block; margin-bottom: 4px; }
+    select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d1d1d6; font-size: 16px; margin-bottom: 10px; background: #fafafa; }
+    
+    /* Searchable technician dropdown styling */
+    .dropdown-container { position: relative; margin-bottom: 10px; }
+    .tech-search-input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #007aff; font-size: 16px; background: #fff; margin-bottom: 0; }
+    .tech-list-box { 
+      position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; 
+      overflow-y: auto; background: #fff; border: 1px solid #c7c7cc; 
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999; display: none; 
+    }
+    .tech-item { padding: 12px; border-bottom: 1px solid #f2f2f7; font-size: 15px; cursor: pointer; }
+    .tech-item:active, .tech-item.selected { background: #e5f1ff; color: #007aff; font-weight: bold; }
+
+    /* Direct Native File Labels instead of JS click() */
+    .file-btn-label { 
+      display: block; width: 100%; padding: 16px; border-radius: 10px; 
+      font-size: 16px; font-weight: 600; text-align: center; cursor: pointer; 
+      background: #007aff; color: #fff; margin-bottom: 10px; text-decoration: none; 
+      box-shadow: 0 2px 5px rgba(0,122,255,0.25);
+    }
+    .file-btn-label:active { background: #0056b3; }
+    .file-input-hidden { opacity: 0; position: absolute; z-index: -1; width: 1px; height: 1px; }
+
+    .btn { display: block; width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; cursor: pointer; margin-bottom: 10px; }
+    .btn-cloud { background: #34c759; color: #fff; font-size: 17px; }
+    .btn-cloud:disabled { background: #a2a2a7; cursor: not-allowed; }
+    .btn-clear { background: #ff3b30; color: #fff; }
+    
+    .count-badge { display: inline-block; background: #007aff; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 13px; float: right; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { padding: 10px 6px; border-bottom: 1px solid #e5e5ea; text-align: left; }
+    th { background: #f8f8fa; color: #8e8e93; }
+    .mono { font-family: monospace; font-weight: bold; font-size: 14px; color: #000; }
+    .status-msg { font-size: 14px; font-weight: bold; margin-top: 10px; text-align: center; line-height: 1.4; }
+    .success { color: #34c759; }
+    .error { color: #ff3b30; }
+    .pending { color: #ff9500; }
+    .conn-status { font-size: 12px; color: #34c759; font-weight: 600; display: flex; align-items: center; margin-bottom: 10px; }
+    .conn-status span { height: 8px; width: 8px; background: #34c759; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .preview-box { text-align: center; margin: 10px 0; }
+    .preview-box img { max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #d1d1d6; display: none; }
+  </style></head><body><div id="diag" class="status-msg pending" style="margin:0 0 10px;font-size:12px">⏳ Έλεγχος εφαρμογής...</div><div class="card"><h2>1. Στοιχεία Χρέωσης</h2>
+<label>Τεχνικός:</label><div class="dropdown-container"><span id="techBtn" style="position:absolute;right:0;top:0;padding:12px 14px;color:#007aff;cursor:pointer">▼</span><input id="techSearch" class="tech-search-input" autocomplete="off" placeholder="🔍 Όνομα τεχνικού..."><div id="techList" class="tech-list-box"></div></div>
+<label>Κατάσταση:</label><select id="status"><option>ΑΠΟΘΗΚΗ ΤΕΧΝΙΚΟΥ</option><option>ΤΟΠΟΘΕΤΗΜΕΝΟ</option><option>ΑΠΟΘΗΚΗ</option><option>ΧΑΜΕΝΟ</option><option>ΚΛΕΜΕΝΟ</option></select>
+<label>Ημερομηνία:</label><input type="date" id="dateInput"></div>
+<div class="card"><h2>2. Φωτογραφίες ετικετών</h2>
+<label for="camIn" class="file-btn-label">📸 Κάμερα</label><input type="file" id="camIn" class="file-input-hidden" accept="image/*" capture="environment">
+<label for="galIn" class="file-btn-label" style="background:#5856d6">🖼️ Άλμπουμ (πολλές φωτογραφίες μαζί)</label><input type="file" id="galIn" class="file-input-hidden" accept="image/*" multiple>
+<label style="margin-top:8px">Ή scanner / χειροκίνητα (Enter):</label><input id="manual" placeholder="Σκάναρε ή γράψε S/N" autocapitalize="characters" autocomplete="off">
+<label style="font-weight:400;margin:6px 0"><input type="checkbox" id="ocrOn" checked style="width:auto;margin-right:6px">OCR κειμένου (πιο αργό, πιάνει όσα δεν διαβάζονται ως barcode)</label><div class="preview-box"><img id="prev"></div><div id="scanStatus" class="status-msg"></div></div>
+<div class="card"><h2>3. Εντοπισμένα S/N <span class="count-badge" id="cnt">0</span></h2>
+<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>S/N</th><th>Τύπος</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+<div style="margin-top:15px"><button class="btn btn-cloud" id="up">☁️ Καταχώρηση στο Google Sheet</button><button class="btn" id="rest" style="display:none;background:#ff9500;color:#fff">↩️ Επαναφορά τελευταίας λίστας</button><button class="btn btn-clear" id="clr">🗑️ Καθαρισμός</button></div><div id="sync" class="status-msg"></div></div>
+
+<script>
+window.addEventListener('error',e=>{const d=document.getElementById('diag');if(d){d.className='status-msg error';d.textContent='⚠️ Σφάλμα JS: '+e.message}});
+function loadZX(srcs,i=0){return new Promise(res=>{if(i>=srcs.length)return res(false);const sc=document.createElement('script');sc.src=srcs[i];sc.onload=()=>res(!!window.ZXing);sc.onerror=()=>loadZX(srcs,i+1).then(res);document.head.appendChild(sc)})}
+const URL_="https://script.google.com/macros/s/AKfycbz-vcri_EQJIWqGsmMnanL_0M3UftIfEHADdRoMLzprLTuxiN5uByygHwVhkZ5zBb0OkA/exec", TECH=["MUHAND", "REI", "ZYBERI", "ΑΘΑΝΑΣΟΠΟΥΛΟΣ", "ΑΝΑΣΤΑΣΙΑΔΗΣ ΠΑΝ", "ΑΝΔΡΕΟΥ", "ΑΝΔΡΙΑΝΟΠΟΥΛΟΣ", "ΑΝΤΙ ΧΑΤΖΙΡΑΙ", "ΑΣΗΜΕΝΙΔΗΣ", "ΒΑΣΙΛΕΙΟΥ", "ΒΕΛΑΛΗΣ", "ΒΕΛΕΚΑΡΔΑΣ", "ΒΕΛΤΣΑΝΙ", "ΒΕΤΣΗΣ", "ΒΕΪΖΗΣ", "ΒΙΛΛΑΣ", "ΒΟΥΒΑΛΑΚΗΣ", "ΓΕΡΟΛΥΜΑΤΟΣ", "ΓΕΩΡΓΟΥΔΑΚΗΣ", "ΓΚΑΒΑΝΙ", "ΓΚΙΑΤΑΣ", "ΓΚΙΑΤΑΣ M", "ΓΚΙΚΑΣ", "ΓΚΙΟΚΑΣ", "ΓΚΟΓΚΟΣ", "ΓΡΑΜΜΑΤΙΚΟΣ", "ΔΡΙΚΑΚΗΣ", "ΕΜΙΛ", "ΕΝΕΑΣ", "ΕΡΝΕΣΤΟ", "ΖΑΙΜΗ ΛΕΩΝΙΔΑΣ", "ΙΕΝΤΣΕΚ", "ΚΑΛΛΕΡΓΗΣ", "ΚΑΛΟΦΩΛΙΑΣ", "ΚΑΡΑΣΣΑΡΙΔΗΣ", "ΚΕΛΛΙΔΗΣ", "ΚΙΡΙΛ", "ΚΟΛΥΔΑΣ ΦΑΝΗΣ", "ΚΟΥΡΤΗΣ", "ΚΡΙΜΙΛ", "ΚΥΡΡΟΣ", "ΚΩΝΣΤΑΝΤΙΔΗΣ", "ΛΑΓΟΠΑΤΗΣ", "ΛΕΙΒΑΔΙΤΗΣ", "ΛΙΟΥΤΑΣ", "ΛΙΤΣΙΚΑΚΑΚΗΣ", "ΛΙΤΣΙΚΑΚΗΣ", "ΛΟΥΛΑΔΑΚΗΣ", "ΛΟΥΜΙ", "ΜΑΚΡΗΣ", "ΜΑΛΗΣ", "ΜΑΛΛΗΣ", "ΜΑΝΟΥΕΛ", "ΜΑΡΙΝΗΣ", "ΜΑΡΙΝΟΣ", "ΜΑΡΝΕΛΟΣ", "ΜΑΥΡΟΜΑΤΟΠΟΥΛΟΣ", "ΜΕΤΑΝΙ", "ΜΗΤΡΟΠΟΥΛΟΣ", "ΜΗΤΣΙΚΑΚΗΣ", "ΜΙΝΤΖΑΣ", "ΜΙΧΑΗΛ", "ΜΟΛΙΩΤΗΣ", "ΜΟΥΧΑΜΕΤΙ", "ΜΠΑΚΛΑΤΖΗΣ", "ΜΠΑΜΙ", "ΜΠΑΜΙ ΔΗΜ", "ΜΠΑΜΙ ΕΡΜΑΛ", "ΜΠΑΝΟΥΖΑΣ", "ΜΥΓΙΑΚΗΣ", "ΜΩΡΙΚΗΣ", "ΝΙΚΟΛΑΟΥ", "ΝΙΚΟΛΟΠΟΥΛΟΣ", "ΝΤΑΒΕΛΗΣ", "ΟΡΦΑΝΟΣ", "ΠΑΛΛΗΣ", "ΠΑΠΑΒΑΣΙΛΕΙΟΥ", "ΠΑΠΑΔΗΜΗΤΡΙΟΥ", "ΠΑΠΑΔΟΠΟΥΛΟΣ", "ΠΑΤΣΑΝΙ", "ΠΑΥΛΑΚΕΛΛΗΣ", "ΠΕΠΠΑΣ", "ΠΡΙΦΤΙ", "ΡΕΝΑ", "ΡΟΥΜΠΕΛΑΚΗΣ", "ΡΩΜΑΝΟΣ", "ΣΑΜΑΡΑΣ", "ΣΑΠΟΥΝΑΚΗΣ", "ΣΑΡΔΗΣ", "ΣΗΜΑΙΟΦΟΡΙΔΗΣ", "ΣΟΝΥ", "ΣΟΥΡΙΛΑΣ", "ΣΤΑΒΕΡΗΣ", "ΣΤΑΜΑΤΟΠΟΥΛΟΣ", "ΣΥΝΝΕΦΟΠΟΥΛΟΣ", "ΤΑΦΑ", "ΤΖΑΒΑΡΑΣ", "ΤΖΙΣΤΑΡΙ ΡΕΙ", "ΤΟΜΠΟΥΛΙΔΗΣ", "ΤΣΑΒΔΑΡΟΠΟΥΛΟΣ", "ΤΣΕΛΑ", "ΤΣΕΛΑ ΑΡΙΟΛ", "ΤΣΕΤΣΑ", "ΤΣΙΓΚΑΣ", "ΤΣΟΥΜΑΝΑΙ", "ΦΕΙΖΟ", "ΦΕΛΕΚΙΔΗΣ", "ΦΙΛΙΠΠΟΥ", "ΦΙΝΤΡΙΛΗΣ", "ΦΥΤΙΛΑΣ", "ΦΩΤΙΑΔΗΣ", "ΧΑΡΑΤΣΗΣ", "ΧΑΤΖΗΠΕΤΡΟΥ", "ΧΟΡΙΕΤΙ", "ΧΟΥΤΑΣ", "ΧΟΥΧΟΥΛΗΣ", "ΧΡΗΣΤΟΣ ΓΚΙΑΤΑΣ", "ΧΡΙΣΤΟΠΟΥΛΟΣ", "ΧΡΟΝΟΠΟΥΛΟΣ", "ΨΑΣ", "ΨΥΧΟΓΙΟΣ"];
+const RULES=[[/^JF[0-9A-F]{8}$/,"SERCOM SPEEDPORT PLUS 2 PSTN"],[/^[JT]\d{3}AO\d{6}$/,"SERCOM SPEEDPORT PLUS 2 PSTN"],[/^48575443[0-9A-F]{8}$/,"HUAWEI ONT"],[/^ALCL[0-9A-Z]{8}$/,"NOKIA ONT"],[/^[VE0]GA3[0-9A-Z]{8}$/,"ZTE H1600 PSTN"],[/^544D[0-9A-F]{12}$/,"COSMOTE ROUTER VANTIVA"]];
+const $=id=>document.getElementById(id);
+let list=[];try{list=JSON.parse(localStorage.getItem('ftth_list')||'[]')}catch(e){}
+const save=()=>{try{localStorage.setItem('ftth_list',JSON.stringify(list))}catch(e){}};
+$('dateInput').value=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+let tech="ΤΣΕΤΣΑ";$('techSearch').value=tech;
+const norm=x=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+function matches(q){const n=norm(q);return TECH.filter(t=>norm(t).includes(n))}
+function showTech(q){const b=$('techList'),m=matches(q);b.innerHTML='';
+ if(!m.length)b.innerHTML='<div style="padding:10px;color:#8e8e93">Δεν βρέθηκε τεχνικός</div>';
+ m.forEach(n=>{const d=document.createElement('div');d.className='tech-item'+(n===tech?' selected':'');d.textContent=n;d.onclick=()=>{tech=n;$('techSearch').value=n;b.style.display='none';$('techSearch').blur()};b.appendChild(d)});
+ b.style.display='block'}
+$('techSearch').onfocus=()=>showTech('');
+$('techBtn').onclick=()=>{const b=$('techList');if(b.style.display==='block')b.style.display='none';else showTech('')};
+$('techSearch').oninput=e=>{tech='';showTech(e.target.value)};
+document.addEventListener('click',e=>{if(!e.target.closest('.dropdown-container'))$('techList').style.display='none'});
+function add(raw,ocr){let t=String(raw).toUpperCase().replace(/[^0-9A-Z]/g,'');
+ if(t.length===13&&t.startsWith('SALCL'))t=t.slice(1); // αφαίρεση του S από Nokia
+ const r=RULES.find(x=>x[0].test(t));if(!r)return null;
+ if(list.some(x=>x.sn===t))return 'dup';list.push({sn:t,type:r[1],ocr:!!ocr});save();return 'new'}
+function render(){$('tb').innerHTML='';list.forEach((it,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td class="mono">${it.sn}${it.ocr?" ⚠️":""}</td><td>${it.type}</td><td><a href="#" data-i="${i}" style="color:#ff3b30;text-decoration:none">✕</a></td>`;$('tb').appendChild(tr)});$('cnt').textContent=list.length}
+$('tb').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined){e.preventDefault();list.splice(+i,1);save();render()}};
+$('manual').onkeydown=e=>{if(e.key==='Enter'){const r=add(e.target.value);$('scanStatus').className='status-msg '+(r==='new'?'success':'error');$('scanStatus').textContent=r==='new'?'✅ Προστέθηκε':r==='dup'?'ℹ️ Υπάρχει ήδη':'❌ Μη αναγνωρίσιμο S/N';e.target.value='';render()}};
+const tick=()=>new Promise(r=>setTimeout(r));
+async function decode(file,useOcr){
+ const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});
+ const s=Math.min(1,3200/Math.max(bmp.width,bmp.height)),W=Math.round(bmp.width*s),H=Math.round(bmp.height*s);
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(bmp,0,0,W,H);
+ $('prev').src=URL.createObjectURL(file);$('prev').style.display='inline-block';
+ const res={bc:new Set(),ocr:new Set()};
+ if(!window.ZXing&&!('BarcodeDetector' in window)&&!useOcr)throw new Error('Δεν έχει φορτώσει η βιβλιοθήκη barcode');
+ if('BarcodeDetector' in window){try{const d=new BarcodeDetector({formats:['code_128','code_39']});(await d.detect(cv)).forEach(b=>res.bc.add(b.rawValue))}catch(e){}}
+ if(window.ZXing){
+  const rd=new ZXing.MultiFormatReader(),h=new Map();h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39]);h.set(ZXing.DecodeHintType.TRY_HARDER,true);rd.setHints(h);
+  const u=W<2000?2:1,tc=document.createElement('canvas'),tx=tc.getContext('2d',{willReadFrequently:true});
+  for(const [fw,fh] of [[.4,.045],[.5,.07]]){const tw=Math.round(W*fw),th=Math.round(H*fh),sx=Math.round(tw/2),sy=Math.round(th/2);
+   for(let y=0;y<H-sy;y+=sy){for(let x=0;x<W-sx;x+=sx){const w=Math.min(tw,W-x),hh=Math.min(th,H-y);tc.width=w*u;tc.height=hh*u;tx.imageSmoothingQuality='high';tx.drawImage(cv,x,y,w,hh,0,0,tc.width,tc.height);
+     const d=tx.getImageData(0,0,tc.width,tc.height).data,l=new Uint8ClampedArray(tc.width*tc.height);
+     for(let i=0,j=0;i<l.length;i++,j+=4)l[i]=(d[j]*306+d[j+1]*601+d[j+2]*117)>>10;
+     try{res.bc.add(rd.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.RGBLuminanceSource(l,tc.width,tc.height)))).getText())}catch(e){}}
+    await tick()}}}
+ if(useOcr){$('scanStatus').textContent='⏳ Ανάγνωση κειμένου (OCR)...';
+  if(!window.Tesseract)await new Promise(r=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';sc.onload=r;sc.onerror=r;document.head.appendChild(sc)});
+  if(window.Tesseract){const k=Math.min(3,3000/Math.max(W,H)),oc=document.createElement('canvas');oc.width=Math.round(W*k);oc.height=Math.round(H*k);const o=oc.getContext('2d');o.imageSmoothingQuality='high';o.drawImage(cv,0,0,oc.width,oc.height);
+   const r=await Tesseract.recognize(oc,'eng'),t=r.data.text.toUpperCase().replace(/\s/g,'');
+   (t.match(/48575443[0-9A-FOIL]{8}|JF[0-9A-FOIL]{8}|ALCL[0-9A-Z]{8}/g)||[]).forEach(w=>res.ocr.add(/^ALCL/.test(w)?w:w.replace(/O/g,'0').replace(/[IL]/g,'1')))}}
+ return res}
+async function handle(files){files=[...files];if(!files.length)return;let nw=0,no=0,dp=0;const st=$('scanStatus');st.className='status-msg pending';
+ for(let k=0;k<files.length;k++){st.textContent=`⏳ Ανάλυση φωτογραφίας ${k+1}/${files.length}...`;
+  try{const r=await decode(files[k],$('ocrOn').checked);
+   for(const c of r.bc){const q=add(c,false);if(q==='new')nw++;else if(q==='dup')dp++}
+   for(const c of r.ocr){if(add(c,true)==='new'){nw++;no++}}}
+  catch(e){st.className='status-msg error';st.textContent='❌ '+e.message;return}render()}
+ st.className='status-msg '+(nw?'success':'error');st.textContent=nw?`✅ ${nw} νέα S/N (σύνολο ${list.length}${dp?`, ${dp} διπλά`:''}).${no?` ⚠️ ${no} διαβάστηκαν με OCR — έλεγξέ τα.`:''} Σύγκρινε με το Q'TY.`:'❌ Δεν βρέθηκαν νέα S/N. Δοκίμασε πιο κοντινή/καθαρή φωτογραφία.';
+ $('camIn').value='';$('galIn').value=''}
+$('camIn').onchange=e=>handle(e.target.files);$('galIn').onchange=e=>handle(e.target.files);
+$('clr').onclick=()=>{if(list.length&&!confirm('Καθαρισμός λίστας;'))return;list=[];save();render();$('scanStatus').textContent='';$('sync').textContent='';$('prev').style.display='none'};
+$('up').onclick=async()=>{const sy=$('sync');if(!list.length){alert('Η λίστα είναι άδεια');return}
+ let t=tech;if(!t){const m=matches($('techSearch').value);if(m.length===1){t=m[0];tech=t;$('techSearch').value=t}else{alert('Διάλεξε τεχνικό από τη λίστα');$('techSearch').focus();return}}const n=list.length;$('up').disabled=true;$('techSearch').value=t;sy.className='status-msg pending';sy.textContent='⏳ Αποστολή...';
+ try{const body=JSON.stringify({technician:t,status:$('status').value,date:$('dateInput').value,items:list});let ok=false;
+  try{ok=navigator.sendBeacon(URL_,new Blob([body],{type:'text/plain;charset=UTF-8'}))}catch(e){}
+  if(!ok)await fetch(URL_,{method:'POST',mode:'no-cors',body});
+  try{localStorage.setItem('ftth_last',JSON.stringify(list))}catch(e){}
+  sy.className='status-msg success';sy.textContent=`✅ Στάλθηκαν ${n} συσκευές στον ${t}. Το Google δεν επιβεβαιώνει — έλεγξε το Sheet. Αν δεν γράφτηκαν, πάτα "Επαναφορά τελευταίας λίστας".`;list=[];save();render();$('rest').style.display='block'}
+ catch(e){sy.className='status-msg error';sy.textContent='❌ Δεν στάλθηκε (η λίστα διατηρήθηκε): '+e.name+' '+e.message}
+ finally{$('up').disabled=false}};
+$('rest').onclick=()=>{try{list=JSON.parse(localStorage.getItem('ftth_last')||'[]')}catch(e){}save();render();$('rest').style.display='none'};
+try{if(localStorage.getItem('ftth_last'))$('rest').style.display='block'}catch(e){}
+render();
+loadZX(['https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js','https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js']).then(ok=>{const d=$('diag');d.className='status-msg '+(ok?'success':'error');d.textContent=ok?'✅ v5.4 έτοιμη (barcode OK)':'❌ Δεν φορτώθηκε η βιβλιοθήκη barcode (έλεγξε internet). Η λίστα και το πεδίο scanner δουλεύουν κανονικά.'});
+</script></body></html>
